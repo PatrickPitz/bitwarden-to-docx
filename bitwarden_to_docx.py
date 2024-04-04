@@ -30,14 +30,32 @@ def create_arg_parser() -> argparse.ArgumentParser:
                             type=pathlib.Path)
     new_parser.add_argument("-fc",
                             "--filter-collection",
-                            help="Filter for a specific collection",
+                            help="Filter for a specific collectionId",
                             required=False,
                             type=str)
     new_parser.add_argument("-fo",
                             "--filter-organization",
-                            help="Filter for a specific organization\nOnly works if no collection filter is set",
+                            help="Filter for a specific organizationId",
                             required=False,
                             type=str)
+    new_parser.add_argument("-fon",
+                            "--filter-name",
+                            help="Filter for a organizations containing a specific string",
+                            required=False,
+                            type=str)
+    new_parser.add_argument("-fu",
+                            "--filter-username",
+                            help="Filter items by username containing a specific string",
+                            required=False,
+                            type=str)
+    new_parser.add_argument("-and",
+                            help="Filters are combined with AND",
+                            required=False,
+                            action="store_true")
+    new_parser.add_argument("-or",
+                            help="Filters are combined with OR",
+                            required=False,
+                            action="store_true")
     return new_parser
 
 
