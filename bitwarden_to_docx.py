@@ -1,13 +1,8 @@
 import argparse
-import pathlib
 import json
+import pathlib
+
 from docx import Document
-
-
-def extract_data_from_json(json_file: pathlib.Path) -> dict:
-    with open(json_file, "r") as file:
-        extracted_data = json.load(file)
-    return extracted_data
 
 
 def create_arg_parser() -> argparse.ArgumentParser:
@@ -48,15 +43,48 @@ def create_arg_parser() -> argparse.ArgumentParser:
                             help="Filter items by username containing a specific string",
                             required=False,
                             type=str)
-    new_parser.add_argument("-and",
-                            help="Filters are combined with AND",
-                            required=False,
-                            action="store_true")
-    new_parser.add_argument("-or",
-                            help="Filters are combined with OR",
+    new_parser.add_argument("-cor",
+                            "--combined-or",
+                            help="Filters are combined with OR; Default is AND",
                             required=False,
                             action="store_true")
     return new_parser
+
+
+def extract_data_from_json(json_file: pathlib.Path) -> dict:
+    with open(json_file, "r") as file:
+        extracted_data = json.load(file)
+    return extracted_data
+
+
+def filter_items_and(items: list, filter_collection: str, filter_organization: str, filter_name: str,
+                     filter_username: str) -> list:
+    filtered_items = items
+    if filter_collection:
+        filtered_items = [item for item in filtered_items if filter_collection in item["collectionIds"]]
+    if filter_organization:
+        filtered_items = [item for item in filtered_items if item["organizationId"] == filter_organization]
+    if filter_name:
+        filtered_items = [item for item in filtered_items if filter_name in item["name"]]
+    if filter_username:
+        filtered_items = [item for item in filtered_items if
+                          "login" in item and filter_username in item["login"]["username"]]
+    return filtered_items
+
+
+def filter_items_or(items: list, filter_collection: str, filter_organization: str, filter_name: str,
+                    filter_username: str) -> list:
+    filtered_items = []
+    if filter_collection:
+        filtered_items.extend([item for item in items if filter_collection in item["collectionIds"]])
+    if filter_organization:
+        filtered_items.extend([item for item in items if item["organizationId"] == filter_organization])
+    if filter_name:
+        filtered_items.extend([item for item in items if filter_name in item["name"]])
+    if filter_username:
+        filtered_items.extend(
+            [item for item in items if "login" in item and filter_username in item["login"]["username"]])
+    return filtered_items
 
 
 if __name__ == '__main__':
@@ -65,20 +93,22 @@ if __name__ == '__main__':
     items = extract_data_from_json(args.input)["items"]
 
     # Filtering items based on command line arguments
-    if args.filter_collection:
-        items = [item for item in items if args.filter_collection in item["collectionIds"] and item["type"] == 1]
-    elif args.filter_organization:
-        items = [item for item in items if item["organizationId"] == args.filter_organization and item["type"] == 1]
+
+    if args.combined_or:
+        items = filter_items_or(items, args.filter_collection, args.filter_organization, args.filter_name,
+                                 args.filter_username)
+    else:
+        items = filter_items_and(items, args.filter_collection, args.filter_organization, args.filter_name,
+                                args.filter_username)
 
     # Creating a Document and adding items to it
     document: Document = Document()
     document.add_heading("Bitwarden Export", level=1)
     for item in items:
         document.add_heading(item["name"], level=2)
-        document.add_paragraph(f"URL: {item['login']['uris'][0]['uri']}")
-        document.add_paragraph(f"Username: {item['login']['username']}")
-        document.add_paragraph(f"Password: {item['login']['password']}")
+        if "login" in item:
+            document.add_paragraph(f"URL: {item['login']['uris'][0]['uri']}")
+            document.add_paragraph(f"Username: {item['login']['username']}")
+            document.add_paragraph(f"Password: {item['login']['password']}")
         document.add_paragraph(f"Notes: {item['notes']}")
     document.save(args.output)
-
-
